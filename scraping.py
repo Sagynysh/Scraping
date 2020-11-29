@@ -26,7 +26,7 @@ def main():
 		html_bytes = page.read()
 		html = html_bytes.decode("utf-8")
 		soup = BeautifulSoup(html,features="html.parser")
-
+		# parsing main pages and running through these data
 		for article in soup.findAll('article', attrs={'class':'product_pod'}):
 			book_name = article.h3.a.text
 			books_price = article.findAll('div', attrs={'class':'product_price'})[0].find('p').text
@@ -38,6 +38,7 @@ def main():
 
 			book = Book(book_name,books_price)
 
+			# request for detailed pages for each book
 			for detail in soup_detail.findAll('article',attrs={'class':'product_page'}):
 				genre = soup_detail.find('ul',attrs={'class':'breadcrumb'}).findAll('li')[2].a.text
 				detail_desc = detail.findAll('p')[3].text
@@ -50,6 +51,7 @@ def main():
 				inStock = False
 				available = 0
 				reviews = 0
+				# parsing data from table condition for each row
 				for tr in detail.table.findAll('tr'):
 					if(tr.th.text == "UPC"):
 						UPC = tr.td.text
@@ -62,6 +64,7 @@ def main():
 					elif(tr.th.text == 'Number of reviews'):
 						reviews = int(tr.td.text)
 
+				# store on Book class
 				book.UPC = UPC
 				book.tax = tax
 				book.inStock = inStock
@@ -71,6 +74,7 @@ def main():
 				book.genre = genre
 				book.rating = rating
 
+				# store data in DataBase postgres
 				sql = "INSERT INTO bookStore (name, price, description, upc, stock, available, genre, rating) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)"
 				val = (book.name,book.price,book.detail_desc,book.UPC,book.inStock,book.available,book.genre,book.rating)
 				cursor.execute(sql,val)
@@ -84,10 +88,11 @@ def main():
 	cursor.close()
 	conn.close()
 	
-	# df = pd.DataFrame([[book.name,book.price,book.detail_desc,book.UPC,book.tax,book.inStock,book.available,book.reviews,book.genre,book.rating] for book in book_list],
-		# columns=['Name','Price (£)','Detail Info','UPC','Tax (£)','In stock','Available','Number of reviews','Genre','Rating'])
+	# upload data via Panda into csv file
+	df = pd.DataFrame([[book.name,book.price,book.detail_desc,book.UPC,book.tax,book.inStock,book.available,book.reviews,book.genre,book.rating] for book in book_list],
+		columns=['Name','Price (£)','Detail Info','UPC','Tax (£)','In stock','Available','Number of reviews','Genre','Rating'])
 
-	# df.to_csv('bookStore.csv',index=False,encoding='utf-8')
+	df.to_csv('bookStore.csv',index=False,encoding='utf-8')
 
 
 
