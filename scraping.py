@@ -2,15 +2,26 @@
 from urllib.request import urlopen
 from bs4 import BeautifulSoup
 import pandas as pd
+import psycopg2
 
 book_list = []
 page_size = 50
 main_url = "http://books.toscrape.com/catalogue/";
 rate_map = {'One':1,'Two':2,'Three':3,'Four':4,'Five':5}
 
+hostname = 'localhost'
+username = 'admin'
+password = 'admin'
+database = 'postgres'
 def main():
+	conn = psycopg2.connect(host=hostname,database=database,user=username,password=password,port='5432')
+
+	cursor = conn.cursor()
+	conn.autocommit = True
+
+
 	for pageIndex in range(page_size):
-		print(pageIndex)
+		# print(pageIndex)
 		page = urlopen(main_url+"page-"+str(pageIndex+1)+".html")
 		html_bytes = page.read()
 		html = html_bytes.decode("utf-8")
@@ -30,8 +41,10 @@ def main():
 			for detail in soup_detail.findAll('article',attrs={'class':'product_page'}):
 				genre = soup_detail.find('ul',attrs={'class':'breadcrumb'}).findAll('li')[2].a.text
 				detail_desc = detail.findAll('p')[3].text
+				if(len(detail_desc) > 250):
+					detail_desc = detail_desc[0:250]
 				rating = rate_map[detail.find('p',attrs={'class':'star-rating'})['class'][1]]
-				print(rating)
+				# print(rating)
 				UPC = ''
 				tax = 0
 				inStock = False
@@ -58,15 +71,23 @@ def main():
 				book.genre = genre
 				book.rating = rating
 
+				sql = "INSERT INTO bookStore (name, price, description, upc, stock, available, genre, rating) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)"
+				val = (book.name,book.price,book.detail_desc,book.UPC,book.inStock,book.available,book.genre,book.rating)
+				cursor.execute(sql,val)
+
 			book_list.append(book)
 
 		# for book in book_list:
 			# print(book.name)
+		
 
-	df = pd.DataFrame([[book.name,book.price,book.detail_desc,book.UPC,book.tax,book.inStock,book.available,book.reviews,book.genre,book.rating] for book in book_list],
-		columns=['Name','Price (£)','Detail Info','UPC','Tax (£)','In stock','Available','Number of reviews','Genre','Rating'])
+	cursor.close()
+	conn.close()
+	
+	# df = pd.DataFrame([[book.name,book.price,book.detail_desc,book.UPC,book.tax,book.inStock,book.available,book.reviews,book.genre,book.rating] for book in book_list],
+		# columns=['Name','Price (£)','Detail Info','UPC','Tax (£)','In stock','Available','Number of reviews','Genre','Rating'])
 
-	df.to_csv('bookStore.csv',index=False,encoding='utf-8')
+	# df.to_csv('bookStore.csv',index=False,encoding='utf-8')
 
 
 
